@@ -1,0 +1,5 @@
+# environment folder
+.venv
+.env
+# data
+data/
