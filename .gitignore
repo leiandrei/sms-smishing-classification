@@ -3,3 +3,6 @@
 .env
 # data
 data/
+
+# caches
+__pycache__
