@@ -6,17 +6,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-def tune_search(xtrain: np.ndarray, ytrain: np.ndarray, pipe: BaseEstimator, params: dict):
+def tune_search(xtrain: np.ndarray, ytrain: np.ndarray, groups,
+                pipe: BaseEstimator, params: dict):
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     grid = GridSearchCV(
         estimator=pipe,
+        param_grid=params,
         cv=sgkf,
         verbose=1,
         n_jobs=-1,
-        scoring='macro_f1'
+        scoring='f1_macro'
     )
 
-    grid.fit(xtrain, ytrain)
+    grid.fit(xtrain, ytrain, groups=groups)
     print(f"Model Best Parameters: {grid.best_params_}")
     print("Best CV macro F1:", grid.best_score_)
     return grid.best_estimator_
