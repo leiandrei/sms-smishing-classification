@@ -1,3 +1,4 @@
+# data manipulation and model training
 seaborn==0.13.2
 scikit-learn==1.9.1
 plotly==7.1.0
@@ -5,5 +6,12 @@ pandas==3.0.6
 matplotlib==3.11.2
 jupyter==1.1.1
 numpy==2.5.3
+
+# data extraction
 kaggle==2.2.4
 kagglehub==1.0.2
+
+# for text preprocessing
+nltk==3.10.3
+regex==2026.9.10
+spacy==3.8.16
