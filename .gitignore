@@ -4,5 +4,9 @@
 # data
 data/
 
+# tasks
+TASKS.md
+
 # caches
 __pycache__
+.pytest_cache
