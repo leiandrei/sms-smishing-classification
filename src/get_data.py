@@ -13,7 +13,8 @@ def extract(dataset_dir: str, path: str):
     api.authenticate()
 
     try:
-        api.dataset_download_files(dataset_dir, path=path, unzip=True)
+        data = api.dataset_download_files(dataset_dir, path=path, unzip=True)
+        return data
     except Exception as e:
         raise Exception(f"Unable to download dataset: {e}") 
 
