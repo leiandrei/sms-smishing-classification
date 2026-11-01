@@ -1,14 +1,9 @@
-import unicodedata
-from sklearn.preprocessing import LabelEncoder
-import pandas as pd
-import string
-import nltk
 import re
+import string
+import unicodedata
+import warnings
+import pandas as pd
 
-nltk.download('stopwords')
-from nltk.corpus import stopwords
-
-# global dictionary for stopwords: tagalog
 TAGALOG_STOPWORDS = {
     'ang','mga','ng','sa','na','ay','at','ito','iyon','yan','yun','si','ni','kay',
     'ako','ikaw','ka','siya','kami','tayo','kayo','sila','ko','mo','niya','namin',
@@ -19,97 +14,165 @@ TAGALOG_STOPWORDS = {
     'ngunit','o','may','meron','wala','yung','yong','nung','noon',
     'ganito','ganyan','ganoon','sana','daw','raw','muna','ulit','uli','talaga'}
 
-# sets if it spots an english or tagalog stopwords
-STOPWORDS = set(stopwords.words('english')) | TAGALOG_STOPWORDS
 
-# leetspeaks mapping: jejemon wordings usually: e.g: 4k0 -> ako
+def _load_english_stopwords():
+    try:
+        from nltk.corpus import stopwords
+        return set(stopwords.words('english')), 'nltk'
+    except Exception:
+        pass
+    try:
+        import nltk
+        nltk.download('stopwords', quiet=True)
+        from nltk.corpus import stopwords
+        return set(stopwords.words('english')), 'nltk'
+    except Exception:
+        from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+        warnings.warn(
+            "NLTK stopwords unavailable -> using scikit-learn's English list. "
+            "This differs from NLTK's list; use the same source for training "
+            "and serving.", stacklevel=2)
+        return set(ENGLISH_STOP_WORDS), 'sklearn-fallback'
+
+
+_ENGLISH_STOPWORDS, STOPWORD_SOURCE = _load_english_stopwords()
+STOPWORDS = _ENGLISH_STOPWORDS | TAGALOG_STOPWORDS
+
 LEET_MAP = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't'})
+PLACEHOLDERS = ('urltoken', 'phonetoken', 'moneytoken')
 
-# tlds: top level domains: extracted url domains from the sms text messages
 TLDS = r'(?:com|click|icu|cyou|bond|shop|help|online|qpon|xyz|net|eu|ph|info|top|site|wang|at|live|work|fun|cf|tk|gq|ml|ga|co)'
 
+URL_PROTO_RE = re.compile(r'(?:https?://|www\.)\S+', re.I)
+URL_BARE_RE = re.compile(
+    rf'\b[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.{TLDS}(?:\.ph)?(?:/\S*)?\b', re.I)
+
+
+PHONE_RE = re.compile(r'(?<!\w)(?:\+?63|0)9\d{9}(?!\w)|(?<!\w)\d{10}(?!\w)')
+
+MONEY_RE = re.compile(
+    r'(php\s?\d[\d,\.]*|₱\s?\d[\d,\.]*|\bp\d+(?:[,\.]\d+)+\b|'
+    r'\bp\d{2,}[\d,]*\b|\d[\d,]*p\b|\d+k\b|\d+m\b)', re.I)
+
+TIME_OR_ORDINAL_RE = re.compile(r'\d{1,2}(?:am|pm|st|nd|rd|th)')
+
+
+TARGET_MAP = {'Legitimate (ham)': 0, 'Smishing (scam)': 1}
+TARGET_NAMES = ['Legitimate', 'Smishing']
+TARGET_MAP_3CLASS = {'Legitimate (ham)': 0, 'Smishing (scam)': 1, 'Spam': 2}
+TARGET_NAMES_3CLASS = ['Legitimate', 'Smishing', 'Spam']
+
+CARRIER_MAP = {
+    "Smart/TNT": "Smart", "Smart/Sun": "Smart", "Sun": "Smart", "TNT": "Smart",
+    "TM": "Globe", "Globe/TM": "Globe", "Globe PostPaid": "Globe",
+    "Globe Postpaid": "Globe", "<unknown>": "Unknown",
+}
+
+REQUIRED_COLUMNS = ['date', 'text', 'Target']
+PHONE_COLUMNS = ['masked_celphone_number', 'hashed_cellphone_number']
+
+
 def normalize_leet(word: str) -> str:
-    if word in ('urltoken', 'phonetoken', 'moneytoken'):
+    if word in PLACEHOLDERS or re.fullmatch(r'\d+', word):
         return word
-    if re.fullmatch(r'\d+', word):
+    if TIME_OR_ORDINAL_RE.fullmatch(word):
         return word
     if re.search(r'[a-z]', word) and re.search(r'[0134579@]', word):
         return word.replace('@', 'a').translate(LEET_MAP)
     return word
 
+
 def transform_text(text: str) -> str:
-    text = str(text).lower()
+    if isinstance(text, (pd.Series, pd.DataFrame)):
+        raise TypeError("transform_text() takes ONE string; for a column use "
+                        "series.map(transform_text).")
+    if text is None or (isinstance(text, float) and text != text):
+        return ''
+
+    text = unicodedata.normalize('NFKC', str(text)).lower()
     text = ' '.join(text.split())
-    text = unicodedata.normalize('NFKC', text)
 
-    text = re.sub(r'(https?://\S+|www\.\S+)', ' urltoken ', text, flags=re.I)
-    text = re.sub(rf'\b[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.{TLDS}(?:\.ph)?(?:/\S*)?\b', ' urltoken ', text, flags=re.I)
-    text = re.sub(r'\b09\d{9}\b|\b\d{10}\b', ' phonetoken ', text)
-    text = re.sub(
-        r'(php\s?\d[\d,\.]*|₱\s?\d[\d,\.]*|\bp\d+(?:[,\.]\d+)+\b|\bp\d{2,}[\d,]*\b|\d[\d,]*p\b|\d+k\b|\d+m\b)',
-        ' moneytoken ', text, flags=re.I
-    )
+    text = URL_PROTO_RE.sub(' urltoken ', text)
+    text = URL_BARE_RE.sub(' urltoken ', text)
+    text = PHONE_RE.sub(' phonetoken ', text)
+    text = MONEY_RE.sub(' moneytoken ', text)
 
-    tokens = [normalize_leet(t) for t in text.split()]
-    text = ' '.join(tokens)
+    text = ' '.join(normalize_leet(t) for t in re.split(r'[^a-z0-9@]+', text) if t)
     text = re.sub(r'[^a-z\s]', ' ', text)
     text = re.sub(r'(.)\1{2,}', r'\1\1', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    return re.sub(r'\s+', ' ', text).strip()
+
 
 def remove_stopwords(text: str) -> str:
-    tokens = [t for t in str(text).split() if t not in STOPWORDS and t != '']
-    return ' '.join(tokens)
+    if text is None or (isinstance(text, float) and text != text):
+        return ''
+    return ' '.join(t for t in str(text).split() if t not in STOPWORDS)
 
-def extract_signal_feats(raw_text: str) -> pd.Series:
-    text = str(raw_text)
-    return pd.Series({
-        'has_url': int(bool(re.search(rf'(https?://\S+|www\.\S+|\b[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.{TLDS}\b)', text, re.I))),
-        'has_money_mention': int(bool(re.search(r'(php\s?\d|₱\s?\d|\bp\d+(?:[,\.]\d+)+\b|\bp\d{2,}[\d,]*\b|\d[\d,]*p\b|\d+k\b|\d+m\b)', text, re.I))),
-        'has_phone_in_text': int(bool(re.search(r'\b09\d{9}\b|\b\+639\d{9}\b|\b\d{10}\b', text))),
+
+def preprocess_text(raw_text: str) -> str:
+    return remove_stopwords(transform_text(raw_text))
+
+
+def extract_signal_feats(raw_text: str) -> dict:
+    text = '' if raw_text is None else str(raw_text)
+    return {
+        'has_url': int(bool(URL_PROTO_RE.search(text) or URL_BARE_RE.search(text))),
+        'has_money_mention': int(bool(MONEY_RE.search(text))),
+        'has_phone_in_text': int(bool(PHONE_RE.search(text))),
         'exclamation_count': text.count('!'),
-        'uppercase_ratio': sum(1 for c in text if c.isupper()) / max(len(text), 1),
-    })
+        'uppercase_ratio': sum(c.isupper() for c in text) / max(len(text), 1),
+    }
 
-def transform(df: pd.DataFrame, encoder: LabelEncoder = None, is_train: bool = True) -> pd.DataFrame:
+
+def count_words(words: str) -> int:
+    return len(str(words).split())
+
+def transform(df: pd.DataFrame, drop_spam: bool = True,
+              one_hot_carrier: bool = False, drop_empty: bool = True) -> pd.DataFrame:
     if df.empty:
-        raise ValueError("The DataFrame is Empty.")
+        raise ValueError("The DataFrame is empty.")
+    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
+    if missing:
+        raise KeyError(f"Raw data is missing required columns: {missing}")
 
     data = df.copy()
+    data['Target'] = data['Target'].astype(str).str.strip()
+    if drop_spam:
+        data = data[data['Target'] != 'Spam']
+    target_map = TARGET_MAP if drop_spam else TARGET_MAP_3CLASS
+    unknown = sorted(set(data['Target']) - set(target_map))
+    if unknown:
+        raise ValueError(f"Unexpected Target labels {unknown}; "
+                         f"expected {sorted(target_map)}.")
+    data = data.dropna(subset=['text']).reset_index(drop=True)
+    data['Target'] = data['Target'].map(target_map)
 
-    try:
-        data = data.drop(['masked_celphone_number', 'hashed_cellphone_number'], axis=1, errors='ignore')
-        data['date'] = pd.to_datetime(data['date'])
-        
-        carrier_map = {
-            "Smart/TNT" : "Smart", "Smart/Sun" : "Smart", "Sun" : "Smart",
-            "TNT" : "Smart", "TM" : "Globe", "Globe/TM" : "Globe",
-            "Globe PostPaid" : "Globe", "<unknown>" : "Unknown"
-        }
-        data['carrier'] = data['carrier'].replace(carrier_map)
+    signals = pd.DataFrame(data['text'].map(extract_signal_feats).tolist(),
+                           index=data.index)
+    data = pd.concat([data, signals], axis=1)
+    data = data.drop(columns=[c for c in PHONE_COLUMNS if c in data.columns])
+    if 'carrier' in data.columns:
+        data['carrier'] = data['carrier'].astype(str).str.strip().replace(CARRIER_MAP)
+    data['date'] = pd.to_datetime(data['date'])
+    data['year'] = data['date'].dt.year
+    data['month'] = data['date'].dt.month_name()
 
-        data['text'] = data['text'].fillna('')
+    data['text_raw'] = data['text'].map(lambda s: ' '.join(str(s).split()))
+    data['punctuation_count'] = data['text_raw'].map(
+        lambda s: sum(ch in string.punctuation for ch in s))
+    data['word_count'] = data['text_raw'].map(count_words)
+    data['text_count'] = data['text_raw'].map(len)
+    data['text'] = data['text_raw'].map(preprocess_text)
+    empty = data['text'].eq('')
+    if empty.any():
+        warnings.warn(f"{int(empty.sum())} message(s) have no text left after "
+                      f"cleaning" + (" and were dropped." if drop_empty else "."),
+                      stacklevel=2)
+        if drop_empty:
+            data = data[~empty].reset_index(drop=True)
+    data['dedup_group_id'] = pd.factorize(data['text'])[0]
 
-        data['punctuation_count'] = data['text'].apply(lambda x: sum(1 for char in x if char in string.punctuation))
-        data['text_count'] = data['text'].apply(len)
-        signal_feats = data['text'].apply(extract_signal_feats)
-        data = pd.concat([data, signal_feats], axis=1)
-
-        data['text'] = data['text'].apply(transform_text)
-        data['text'] = data['text'].apply(remove_stopwords)
-        data['word_count'] = data['text'].apply(lambda x: len(x.split()))
-
-        if 'Target' in data.columns and encoder is not None:
-            if is_train:
-                data['Target'] = encoder.fit_transform(data["Target"])
-            else:
-                data['Target'] = encoder.transform(data["Target"])
-
-        data['year'] = data['date'].dt.year
-        data['month'] = data['date'].dt.month_name()
-        
-        data.columns = data.columns.str.lower()
-        return data
-
-    except Exception as e:
-        raise Exception(f"Unable to transform the DataFrame: {e}") from e
+    data.columns = data.columns.str.lower()
+    if one_hot_carrier and 'carrier' in data.columns:
+        data = pd.get_dummies(data, columns=['carrier'], dtype=int)
+    return data
