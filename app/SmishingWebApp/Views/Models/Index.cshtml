@@ -1,0 +1,186 @@
+@{
+    ViewData["Title"] = "Models";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/models.css" asp-append-version="true" />
+}
+
+<section class="page-intro reveal">
+    <p class="eyebrow mono">CLASSIFIER ARCHITECTURE &amp; BENCHMARKS</p>
+    <h1>Models</h1>
+    <p class="lead">
+        Plain-language overview of the probabilistic and ensemble classifiers trained on Philippine English, Tagalog, and Taglish SMS messages.
+    </p>
+</section>
+
+<section class="models-overview-grid">
+    <article class="surface-card reveal">
+        <div class="card-header">
+            <span class="mono tag-pill">PROBABILISTIC LINEAR MODEL</span>
+            <h2>Naive Bayes</h2>
+        </div>
+        <p class="card-body-text">
+            Evaluates each word, n-gram phrase, and heuristic signal independently using Bayes' theorem to compute the posterior probability that an SMS is smishing versus legitimate.
+        </p>
+        <div class="pros-cons">
+            <div>
+                <h3 class="mono sub-heading">STRENGTHS</h3>
+                <ul class="clean-list">
+                    <li>Sub-millisecond CPU inference and minimal memory footprint.</li>
+                    <li>High interpretability—log-likelihood ratios map directly to top trigger tokens.</li>
+                    <li>Performs strongly on high-dimensional sparse TF-IDF matrices.</li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="mono sub-heading">WEAKNESSES</h3>
+                <ul class="clean-list">
+                    <li>Assumes conditional independence between tokens in a message.</li>
+                    <li>Cannot natively capture complex non-linear interactions between URL flags and text length.</li>
+                </ul>
+            </div>
+        </div>
+    </article>
+
+    <article class="surface-card reveal">
+        <div class="card-header">
+            <span class="mono tag-pill">ENSEMBLE TREE MODEL</span>
+            <h2>Random Forest</h2>
+        </div>
+        <p class="card-body-text">
+            Constructs an ensemble of 200 decorrelated decision trees trained on bootstrapped subsets of the dataset and aggregates their class probability votes.
+        </p>
+        <div class="pros-cons">
+            <div>
+                <h3 class="mono sub-heading">STRENGTHS</h3>
+                <ul class="clean-list">
+                    <li>Captures non-linear combinations across n-grams, URL flags, and uppercase ratios.</li>
+                    <li>Resistant to individual feature outliers through random subspace splits (<span class="mono">log2</span>).</li>
+                    <li>Requires no feature scaling assumptions for split thresholds.</li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="mono sub-heading">WEAKNESSES</h3>
+                <ul class="clean-list">
+                    <li>Larger serialized model size and higher inference latency than Naive Bayes.</li>
+                    <li>Decision boundaries across 200 deep trees are less transparent at the single-token level.</li>
+                </ul>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="surface-card comparison-section reveal">
+    <div class="section-head">
+        <div>
+            <span class="mono tag-pill">VARIANT COMPARISON</span>
+            <h2>Multinomial vs. Complement Naive Bayes</h2>
+        </div>
+        <a asp-controller="Tuning" asp-action="Index" class="btn btn-secondary">Open Parameter Sandbox &rarr;</a>
+    </div>
+
+    <div class="variant-grid">
+        <div class="variant-box">
+            <div class="variant-top">
+                <h3>Multinomial Naive Bayes (<span class="mono">MNB</span>)</h3>
+                <span class="mono metric-badge">96.59% ACC &middot; 98.51% AUC</span>
+            </div>
+            <p>
+                Estimates token likelihoods directly from term frequencies within each class (<span class="mono">Smishing</span> and <span class="mono">Legitimate</span>). Achieves the highest overall holdout accuracy and precision (<span class="mono">0.95</span>) after Laplace smoothing (<span class="mono">alpha=0.1</span>).
+            </p>
+        </div>
+
+        <div class="variant-box">
+            <div class="variant-top">
+                <h3>Complement Naive Bayes (<span class="mono">CNB</span>)</h3>
+                <span class="mono metric-badge">96.38% ACC &middot; 0.97 RECALL</span>
+            </div>
+            <p>
+                Estimates parameters using statistics from the <em>complement</em> of each class—specifically designed to correct skewed class distributions. Delivers the highest smishing recall (<span class="mono">0.97</span>), minimizing missed scam messages.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="surface-card table-section reveal">
+    <span class="mono tag-pill">HYPERPARAMETER REFERENCE</span>
+    <h2>Tunable Parameters per Model</h2>
+    <p class="table-intro">
+        Parameters exposed in the <a asp-controller="Tuning" asp-action="Index" class="inline-link">Tuning sandbox</a> and their tuned production defaults[cite: 8]:
+    </p>
+
+    <div class="table-wrapper">
+        <table class="params-table">
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Applies To</th>
+                    <th>Default</th>
+                    <th>Behavior &amp; Effect</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="mono">alpha</td>
+                    <td>MNB, CNB</td>
+                    <td class="mono">0.1</td>
+                    <td>Additive (Laplace/Lidstone) smoothing parameter preventing zero probabilities for unseen SMS tokens.</td>
+                </tr>
+                <tr>
+                    <td class="mono">fit_prior</td>
+                    <td>MNB, CNB</td>
+                    <td class="mono">true</td>
+                    <td>Learns class prior probabilities from the training corpus instead of assuming uniform 50/50 priors.</td>
+                </tr>
+                <tr>
+                    <td class="mono">norm</td>
+                    <td>CNB only</td>
+                    <td class="mono">false</td>
+                    <td>Applies L2 weight normalization to complement weights to curb bias toward longer SMS messages.</td>
+                </tr>
+                <tr>
+                    <td class="mono">n_estimators</td>
+                    <td>Random Forest</td>
+                    <td class="mono">200</td>
+                    <td>Total number of decision trees aggregated in the forest ensemble.</td>
+                </tr>
+                <tr>
+                    <td class="mono">max_depth</td>
+                    <td>Random Forest</td>
+                    <td class="mono">200</td>
+                    <td>Maximum tree depth controlling how deeply complex multi-token rules can branch.</td>
+                </tr>
+                <tr>
+                    <td class="mono">min_samples_split</td>
+                    <td>Random Forest</td>
+                    <td class="mono">6</td>
+                    <td>Minimum SMS samples required at an internal node before splitting further.</td>
+                </tr>
+                <tr>
+                    <td class="mono">max_features</td>
+                    <td>Random Forest</td>
+                    <td class="mono">log2</td>
+                    <td>Number of candidate TF-IDF/heuristic features evaluated at each split (<span class="mono">log2</span>, <span class="mono">sqrt</span>, or <span class="mono">all</span>).</td>
+                </tr>
+                <tr>
+                    <td class="mono">ngram_range</td>
+                    <td>Shared Vectorizer</td>
+                    <td class="mono">(1, 4)</td>
+                    <td>Lower and upper boundary of word n-grams extracted by <span class="mono">TfidfVectorizer</span>.</td>
+                </tr>
+                <tr>
+                    <td class="mono">lowercase</td>
+                    <td>Shared Vectorizer</td>
+                    <td class="mono">true</td>
+                    <td>Normalizes all characters to lowercase prior to tokenization (while uppercase ratio is preserved separately).</td>
+                </tr>
+                <tr>
+                    <td class="mono">max_vocab</td>
+                    <td>Shared Vectorizer</td>
+                    <td class="mono">10000</td>
+                    <td>Caps maximum retained TF-IDF vocabulary features ordered by term frequency across the corpus.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>

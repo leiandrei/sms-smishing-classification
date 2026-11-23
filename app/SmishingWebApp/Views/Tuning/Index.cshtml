@@ -1,0 +1,188 @@
+@model SmishingWebApp.Models.TuningParametersViewModel
+@{
+    ViewData["Title"] = "Tuning";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tuning.css" asp-append-version="true" />
+}
+
+<section class="page-intro reveal">
+    <p class="eyebrow mono">INTERACTIVE HYPERPARAMETER SANDBOX</p>
+    <h1>Tuning</h1>
+    <p class="lead">
+        Adjust classifier hyperparameters and shared TF-IDF text feature settings to observe real-time effects on the live test box[cite: 8].
+    </p>
+</section>
+
+<div class="tuning-layout">
+    <section class="surface-card controls-panel reveal">
+        <div class="control-block">
+            <label for="tuneModelKey" class="block-title">Target Classifier</label>
+            <select id="tuneModelKey" name="ModelKey" class="tune-select">
+                <option value="cnb" selected>Complement Naive Bayes (CNB)</option>
+                <option value="mnb">Multinomial Naive Bayes (MNB)</option>
+                <option value="rf">Random Forest (RF)</option>
+            </select>
+        </div>
+
+        <fieldset class="control-fieldset" id="nbFieldset">
+            <legend class="mono fieldset-legend">NAIVE BAYES PARAMETERS</legend>
+
+            <div class="param-row">
+                <div class="param-label-row">
+                    <label for="tuneAlpha" class="mono param-name">alpha</label>
+                    <span id="alphaValueDisplay" class="mono param-val">0.10</span>
+                </div>
+                <input type="range" id="tuneAlpha" name="alpha" min="0.01" max="2.00" step="0.01" value="0.10" class="tune-slider" />
+                <span class="param-hint">Laplace/Lidstone smoothing factor (default: 0.1)</span>
+            </div>
+
+            <div class="toggle-grid">
+                <label class="toggle-card" for="tuneFitPrior">
+                    <input type="checkbox" id="tuneFitPrior" name="fit_prior" checked />
+                    <div>
+                        <span class="mono param-name">fit_prior</span>
+                        <span class="param-hint">Learn class prior probabilities</span>
+                    </div>
+                </label>
+
+                <label class="toggle-card" id="normToggleWrapper" for="tuneNorm">
+                    <input type="checkbox" id="tuneNorm" name="norm" />
+                    <div>
+                        <span class="mono param-name">norm</span>
+                        <span class="param-hint">L2 weight normalization (Complement NB only)</span>
+                    </div>
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset class="control-fieldset" id="rfFieldset">
+            <legend class="mono fieldset-legend">RANDOM FOREST PARAMETERS</legend>
+
+            <div class="param-row">
+                <div class="param-label-row">
+                    <label for="tuneEstimators" class="mono param-name">n_estimators</label>
+                    <span id="estimatorsValueDisplay" class="mono param-val">200</span>
+                </div>
+                <input type="range" id="tuneEstimators" name="n_estimators" min="50" max="500" step="25" value="200" class="tune-slider" />
+            </div>
+
+            <div class="param-row">
+                <div class="param-label-row">
+                    <label for="tuneMaxDepth" class="mono param-name">max_depth</label>
+                    <span id="maxDepthValueDisplay" class="mono param-val">200</span>
+                </div>
+                <input type="range" id="tuneMaxDepth" name="max_depth" min="10" max="300" step="10" value="200" class="tune-slider" />
+            </div>
+
+            <div class="two-col-inputs">
+                <div class="input-group">
+                    <label for="tuneMinSamplesSplit" class="mono param-name">min_samples_split</label>
+                    <input type="number" id="tuneMinSamplesSplit" name="min_samples_split" min="2" max="20" value="6" class="tune-input mono" />
+                </div>
+
+                <div class="input-group">
+                    <label for="tuneMaxFeatures" class="mono param-name">max_features</label>
+                    <select id="tuneMaxFeatures" name="max_features" class="tune-select mono">
+                        <option value="log2" selected>log2</option>
+                        <option value="sqrt">sqrt</option>
+                        <option value="None">None</option>
+                    </select>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="control-fieldset">
+            <legend class="mono fieldset-legend">SHARED TEXT FEATURES</legend>
+
+            <div class="two-col-inputs">
+                <div class="input-group">
+                    <label for="tuneNgramRange" class="mono param-name">ngram_range</label>
+                    <select id="tuneNgramRange" name="ngram_range" class="tune-select mono">
+                        <option value="1,1">(1, 1) Unigrams</option>
+                        <option value="1,2">(1, 2) Bigrams</option>
+                        <option value="1,3">(1, 3) Trigrams</option>
+                        <option value="1,4" selected>(1, 4) 4-grams</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="tuneMaxVocab" class="mono param-name">max_vocab</label>
+                    <input type="number" id="tuneMaxVocab" name="max_vocab" min="500" max="50000" step="500" value="10000" class="tune-input mono" />
+                </div>
+            </div>
+
+            <label class="toggle-card mt-sm" for="tuneLowercase">
+                <input type="checkbox" id="tuneLowercase" name="lowercase" checked />
+                <div>
+                    <span class="mono param-name">lowercase</span>
+                    <span class="param-hint">Convert SMS tokens to lowercase before TF-IDF vectorization</span>
+                </div>
+            </label>
+        </fieldset>
+
+        <div class="sandbox-actions">
+            <button type="button" id="resetDefaultsBtn" class="btn btn-secondary">Reset to defaults</button>
+            <button type="button" id="useSettingsBtn" class="btn btn-primary">Use these settings &rarr;</button>
+        </div>
+    </section>
+
+    <aside class="surface-card live-panel reveal" aria-live="polite">
+        <div class="live-header">
+            <span class="mono tag-pill">LIVE TEST BOX</span>
+            <span id="liveSyncStatus" class="mono sync-indicator">READY</span>
+        </div>
+
+        <div class="live-input-group">
+            <label for="liveSampleInput" class="block-title">Test SMS Message</label>
+            <textarea id="liveSampleInput"
+                      rows="4"
+                      maxlength="500"
+                      class="live-textarea"
+                      placeholder="Type an SMS message to test live parameter changes...">@Model.SampleMessage</textarea>
+        </div>
+
+        <div id="liveErrorBox" class="live-error hidden" role="alert"></div>
+
+        <div id="liveResultContainer" class="live-result-box">
+            <div class="live-verdict-row">
+                <span id="liveVerdictBadge" class="verdict-badge mono verdict-smishing">EVALUATING...</span>
+                <span id="liveModelName" class="mono live-model-label">Complement Naive Bayes</span>
+            </div>
+
+            <div class="live-bars">
+                <div class="prob-item">
+                    <div class="prob-header mono">
+                        <span>SMISHING</span>
+                        <span id="liveSmishPct">0.00%</span>
+                    </div>
+                    <div class="prob-track">
+                        <div id="liveSmishBar" class="prob-fill prob-fill-primary"></div>
+                    </div>
+                </div>
+
+                <div class="prob-item">
+                    <div class="prob-header mono">
+                        <span>LEGITIMATE</span>
+                        <span id="liveLegitPct">0.00%</span>
+                    </div>
+                    <div class="prob-track">
+                        <div id="liveLegitBar" class="prob-fill prob-fill-secondary"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-tokens">
+                <span class="mono tag-pill">TOP SIGNAL WORDS</span>
+                <div id="liveTokensList" class="tokens-list"></div>
+            </div>
+
+            <div class="live-settings-summary mono" id="liveSettingsSummary"></div>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/js/tuning.js" asp-append-version="true"></script>
+}

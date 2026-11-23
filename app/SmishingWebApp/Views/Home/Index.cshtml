@@ -1,0 +1,173 @@
+﻿@model SmishingWebApp.Models.DetectorViewModel
+@{
+    ViewData["Title"] = "Detector";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/detector.css" asp-append-version="true" />
+}
+
+<section class="page-intro reveal">
+    <p class="eyebrow mono">PHILIPPINE SMS SMISHING DETECTOR</p>
+    <h1>Text or Trap</h1>
+    <p class="lead">
+        Paste a Filipino, Taglish, or English SMS message—or drop a screenshot for on-device OCR—to evaluate smishing risk using trained machine learning classifiers.
+    </p>
+</section>
+
+<section class="detector-grid">
+    <div class="surface-card reveal">
+        <div class="ocr-panel" id="ocrDropzone" tabindex="0" role="button" aria-label="Upload or drop SMS screenshot for OCR">
+            <input type="file" id="ocrFileInput" accept="image/*" hidden />
+            <div class="ocr-content">
+                <span class="ocr-title">Screenshot to text (Tagalog + English OCR)</span>
+                <span class="ocr-subtitle" id="ocrStatus">Drag and drop an SMS screenshot here, or click to select an image.</span>
+            </div>
+            <span class="mono ocr-badge">ON-DEVICE</span>
+        </div>
+
+        <div class="samples-section">
+            <span class="section-label mono">SAMPLE MESSAGES</span>
+            <div class="samples-row">
+                <button type="button"
+                        class="sample-pill"
+                        data-sample="Hi Ma, nakauwi na po ako sa bahay. Kumain na rin kami ni bunso, ingat po sa biyahe pauwi.">
+                    Safe &middot; Family Check-In
+                </button>
+                <button type="button"
+                        class="sample-pill"
+                        data-sample="URGENT: Your GCash account has been temporarily suspended due to unverified KYC. Verify now via http://gcash-kyc-update.online to avoid permanent deactivation.">
+                    Smishing &middot; Wallet KYC Lure
+                </button>
+                <button type="button"
+                        class="sample-pill"
+                        data-sample="CONGRATS! Napili ang iyong number para manalo ng PHP 50,000 sa NTC-DTI Raffle! I-claim ang premyo at i-send ang iyong OTP sa bit.ly/claim-premyo2026 ngayon!">
+                    Smishing &middot; Taglish Prize Scam
+                </button>
+            </div>
+        </div>
+
+        <form asp-controller="Home" asp-action="Index" method="post" id="detectorForm" class="detector-form">
+            <input type="hidden" asp-for="Parameters.ModelKey" />
+            <input type="hidden" asp-for="Parameters.alpha" />
+            <input type="hidden" asp-for="Parameters.fit_prior" />
+            <input type="hidden" asp-for="Parameters.norm" />
+            <input type="hidden" asp-for="Parameters.n_estimators" />
+            <input type="hidden" asp-for="Parameters.max_depth" />
+            <input type="hidden" asp-for="Parameters.min_samples_split" />
+            <input type="hidden" asp-for="Parameters.max_features" />
+            <input type="hidden" asp-for="Parameters.ngram_range" />
+            <input type="hidden" asp-for="Parameters.lowercase" />
+            <input type="hidden" asp-for="Parameters.max_vocab" />
+
+            <div class="field-group">
+                <div class="field-header">
+                    <label asp-for="SmsMessage" class="field-label">SMS Message</label>
+                    <span class="mono char-counter" id="charCounter">0 / 500</span>
+                </div>
+                <textarea asp-for="SmsMessage"
+                          id="smsMessageInput"
+                          class="sms-textarea"
+                          rows="5"
+                          maxlength="500"
+                          placeholder="Paste or type a Filipino, Taglish, or English SMS message..."></textarea>
+                <span asp-validation-for="SmsMessage" class="field-error"></span>
+            </div>
+
+            <div class="form-controls">
+                <div class="model-select-group">
+                    <label asp-for="SelectedModel" class="field-label">Classifier Model</label>
+                    <select asp-for="SelectedModel" id="selectedModelInput" class="model-select">
+                        <option value="cnb">Complement Naive Bayes</option>
+                        <option value="mnb">Multinomial Naive Bayes</option>
+                        <option value="rf">Random Forest</option>
+                    </select>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" id="clearMessageBtn" class="btn btn-secondary">Clear</button>
+                    <button type="submit" id="analyzeBtn" class="btn btn-primary">Analyze Message</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="surface-card error-banner reveal" role="alert">
+            <span class="mono error-tag">INFERENCE ERROR</span>
+            <p class="error-text">@Model.ErrorMessage</p>
+        </div>
+    }
+
+    @if (Model.Result is not null)
+    {
+        var isSmishing = Model.Result.Label == "SMISHING";
+        var smishingPct = Math.Round(Model.Result.ProbSmishing * 100, 2);
+        var legitPct = Math.Round(Model.Result.ProbLegit * 100, 2);
+
+        <div class="surface-card result-card reveal" aria-live="polite">
+            <div class="result-top">
+                <div>
+                    <span class="section-label mono">CLASSIFICATION VERDICT</span>
+                    <div class="verdict-row">
+                        <span class="verdict-badge mono @(isSmishing ? "verdict-smishing" : "verdict-legit")">
+                            @Model.Result.Label
+                        </span>
+                    </div>
+                </div>
+                <div class="model-meta">
+                    <span class="mono meta-model">@Model.Result.ModelName</span>
+                    <a asp-controller="Tuning" asp-action="Index" class="meta-tune-link mono">Adjust parameters &rarr;</a>
+                </div>
+            </div>
+
+            <div class="prob-section">
+                <div class="prob-item">
+                    <div class="prob-header mono">
+                        <span>SMISHING</span>
+                        <span>@smishingPct.ToString("F2")%</span>
+                    </div>
+                    <div class="prob-track">
+                        <div class="prob-fill prob-fill-primary" style="width: @smishingPct.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                </div>
+
+                <div class="prob-item">
+                    <div class="prob-header mono">
+                        <span>LEGITIMATE</span>
+                        <span>@legitPct.ToString("F2")%</span>
+                    </div>
+                    <div class="prob-track">
+                        <div class="prob-fill prob-fill-secondary" style="width: @legitPct.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.Result.TopTokens.Count > 0)
+            {
+                <div class="tokens-section">
+                    <span class="section-label mono">TOP SIGNAL WORDS &amp; WEIGHTS</span>
+                    <div class="tokens-list">
+                        @foreach (var signal in Model.Result.TopTokens)
+                        {
+                            <span class="token-chip mono">
+                                <span class="token-word">@signal.Token</span>
+                                <span class="token-weight">@signal.Weight.ToString("F2")</span>
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="result-footer mono">
+                <span>Settings: @Model.Result.SettingsSummary</span>
+            </div>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="~/js/detector.js" asp-append-version="true"></script>
+}
