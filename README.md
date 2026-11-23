@@ -110,4 +110,28 @@ Pairwise exact McNemar's tests were conducted at a significance threshold of $\a
 
 *Table VIII. Pairwise McNemar's Statistical Significance Test Results*
 
+## Acknowledgments & Data Attribution
+
+This project builds upon publicly available Philippine SMS datasets generously shared by the Kaggle community:
+
+* **[Philippine Spam/Scam SMS Dataset](https://www.kaggle.com/datasets/<bwandowando-dataset-slug>)** by **BwandoWando (2026)** — 1,021 personally received spam, scam, and legitimate SMS messages.
+* **[Tagalog-SMS Dataset](https://www.kaggle.com/datasets/<zero-dataset-slug>)** by **ZERO (2025)** — 3,454 personal SMS records spanning spam, advertisements, government notices, notifications, and OTPs.
+
+Additional records were sourced from **Text or Trap** contributor submissions (61 records) and public records requested from the **National Telecommunications Commission (NTC)** (500 records).
+
+## Future Improvements
+
+While the current classical pipeline (`TF-IDF` + engineered heuristic features with Naive Bayes and Random Forest) achieves **96.59% accuracy** and **98.51% ROC AUC**, future iterations can explore deeper neural architectures and dense semantic representations to better capture Filipino/Taglish code-switching and sequential context:
+
+* **Dense Word Embeddings (`Word2Vec` & Subword Representations):**
+  * Augment or replace sparse bag-of-n-grams (`TF-IDF`) features with dense semantic vector representations trained via **Word2Vec** (Skip-gram / CBOW) on a broader Philippine SMS and Taglish corpus so the classifier captures semantic similarity across related phishing lures and urgency cues.
+  * Pair Word2Vec with subword-aware embeddings (such as **FastText**) during text preprocessing to better handle Tagalog morphological affixes (*mag-*, *nag-*, *-an*, *-in*) and out-of-vocabulary typosquatting or leetspeak variants.
+* **Sequential Deep Learning Models (`RNN`, `LSTM`, & `BiLSTM`):**
+  * Implement **Recurrent Neural Networks (RNN)** and **Long Short-Term Memory (LSTM)** networks to model word order and long-range sequential dependencies across multi-clause SMS messages (e.g., an urgent account-warning premise followed by a call-to-action link) that bag-of-words models treat independently.
+  * Explore **Bidirectional LSTMs (`BiLSTM`)** within a hybrid multi-input neural architecture—concatenating learned sequence representations with the existing 13 domain-specific binary and numerical heuristic features—to combine sequential text modeling with explicit URL, currency, and telco metadata signals.
+* **Pre-Trained Multilingual & Tagalog Transformers:**
+  * Benchmark fine-tuned lightweight transformer models (such as **XLM-RoBERTa**, **DistilBERT**, or **Tagalog-pretrained BERT**) against the `LSTM` and Naive Bayes baselines, evaluating predictive gains against container memory footprint and CPU inference latency.
+* **Continuous Corpus Expansion & Drift Monitoring:**
+  * Expand the dataset with newly emerging smishing templates and add prediction confidence logging to the FastAPI service to monitor distribution and concept drift as scam tactics evolve.
+
 
