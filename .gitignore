@@ -3,9 +3,10 @@
 .env
 # data
 data/
-
+.idea/
 # tasks
 TASKS.md
+REVISIONS.md
 
 # caches
 __pycache__

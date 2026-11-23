@@ -34,35 +34,29 @@ def show_metrics(ytest: np.ndarray, ypred: np.ndarray, yproba: np.ndarray):
     print(f"=======================")
     print(classification_report(ytest, ypred))
 
-def visualize_metrics(model, cm, xtest, ytest, name: str, labels: list):
-    sns.set_style('whitegrid')
-
-    fig, ax = plt.subplots(1, 2, figsize=(13, 7)) 
-    plt.suptitle(f'Metrics Visualizations: {name}')
-
-    sns.heatmap(cm, annot=True, fmt='d', cmap='viridis', ax=ax[0], xticklabels=['Legitimate', 'Smishing', 'Spam'],
-                yticklabels=['Legitimate', 'Smishing', 'Spam'], linewidths=0.5, linecolor='black')
-    ax[0].set_title('Confusion Matrix')
-    ax[0].set_xlabel('Predicted Labels')
-    ax[0].set_ylabel('Actual Labels')
-
-    yprob = model.predict_proba(xtest)
-    ytest_bin = label_binarize(ytest, classes=[0, 1, 2])
+def visualize_metrics(model, cm, xtest, ytest, name: str): 
+    sns.set_style('whitegrid') 
+    fig, ax = plt.subplots(1, 2, figsize=(13, 6)) 
+    plt.suptitle(f'Metrics Visualizations: {name}') 
     
-    for i, cls in enumerate(labels):
-        RocCurveDisplay.from_predictions(
-            ytest_bin[:, i], yprob[:, i],
-            name=f'{cls} vs Rest', 
-            ax=ax[1]
-        )
-        
-    ax[1].grid(True, alpha=0.8)
-    ax[1].plot([0, 1], [0, 1], 'k--', label='Random Guess')
-    ax[1].legend(loc="lower right")
-    ax[1].set_title('ROC Curve')
+    class_labels = ['Legitimate (0)', 'Smishing (1)']
+    
+    sns.heatmap(cm, annot=True, fmt='d', cmap='viridis', ax=ax[0], 
+                xticklabels=class_labels, yticklabels=class_labels, 
+                linewidths=0.5, linecolor='black') 
+    
+    ax[0].set_title('Confusion Matrix') 
+    ax[0].set_xlabel('Predicted Labels') 
+    ax[0].set_ylabel('Actual Labels') 
+    
+    RocCurveDisplay.from_estimator(model, xtest, ytest, ax=ax[1], name=name) 
+    
+    ax[1].plot([0, 1], [0, 1], 'k--', label='Random Guess') 
+    ax[1].grid(True, alpha=0.8) 
+    ax[1].set_title('ROC Curve') 
+    ax[1].legend(loc="lower right") 
     
     plt.tight_layout()
     plt.show()
-
 
     

@@ -5,10 +5,9 @@ from fastapi import FastAPI, HTTPException
 import os
 import joblib
 import numpy as np
-from preprocessing import transform_text, remove_stopwords
+from src.preprocessing import transform_text, remove_stopwords
 
 MODEL_PATH = os.getenv('MODEL_BUNDLE_PATH', '../model/bundled_pipeline.joblib')
-
 
 try:
     

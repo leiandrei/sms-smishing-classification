@@ -20,4 +20,5 @@ def extract(dataset_dir: str, path: str):
 
 
 if __name__ == "__main__":
-    extract("bwandowando/philippine-spam-sms-messages", "./data/raw")
+    # extract("bwandowando/philippine-spam-sms-messages", "./data/raw")
+    extract("onzero0/tagalog-sms", "../data/raw")
