@@ -155,7 +155,7 @@ public partial class SmishingApiService : ISmishingApiService
         {
             "cnb" => $"alpha={p.alpha}, fit_prior={p.fit_prior.ToString().ToLowerInvariant()}, norm={p.norm.ToString().ToLowerInvariant()}, ngram_range=({p.ngram_range})",
             "mnb" => $"alpha={p.alpha}, fit_prior={p.fit_prior.ToString().ToLowerInvariant()}, ngram_range=({p.ngram_range})",
-            "rf" => $"n_estimators={p.n_estimators}, max_depth={p.max_depth?.ToString() ?? "None"}, min_samples_split={p.min_samples_split}, max_features={p.max_features}",
+            "rf" => $"class_weight={p.class_weight}, criterion='{p.criterion}', max_depth={p.max_depth?.ToString() ?? "None"}, max_features='{p.max_features}', min_samples_leaf={p.min_samples_leaf}, min_samples_split={p.min_samples_split}, n_estimators={p.n_estimators}, random_state={p.random_state}",
             _ => $"ngram_range=({p.ngram_range})"
         };
     }

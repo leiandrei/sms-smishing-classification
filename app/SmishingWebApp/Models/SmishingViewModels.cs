@@ -56,6 +56,7 @@ public class TuningParametersViewModel
 {
     public string ModelKey { get; set; } = "cnb";
 
+    // Naive Bayes parameters
     [Range(0.001, 10.0)]
     public double alpha { get; set; } = 0.1;
 
@@ -63,17 +64,28 @@ public class TuningParametersViewModel
 
     public bool norm { get; set; } = false;
 
-    [Range(10, 1000)]
-    public int n_estimators { get; set; } = 200;
+    // Random Forest parameters (matching bundled_pipeline.joblib)
+    public string class_weight { get; set; } = "None";
+
+    public string criterion { get; set; } = "entropy";
 
     [Range(1, 500)]
     public int? max_depth { get; set; } = 200;
 
+    public string max_features { get; set; } = "log2";
+
+    [Range(1, 50)]
+    public int min_samples_leaf { get; set; } = 1;
+
     [Range(2, 50)]
     public int min_samples_split { get; set; } = 6;
 
-    public string max_features { get; set; } = "log2";
+    [Range(10, 1000)]
+    public int n_estimators { get; set; } = 200;
 
+    public int random_state { get; set; } = 42;
+
+    // Shared TF-IDF text features
     public string ngram_range { get; set; } = "1,4";
 
     public bool lowercase { get; set; } = true;

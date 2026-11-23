@@ -80,7 +80,6 @@ public class TuningController : Controller
 
         if (p.ModelKey is "cnb" or "mnb")
         {
-            // Higher Laplace smoothing pulls extreme posteriors slightly toward 0.50
             var alphaShift = Math.Log10(Math.Max(p.alpha, 0.001) / 0.1) * 0.045;
             pSmish = pSmish >= 0.5
                 ? Math.Max(0.51, pSmish - alphaShift)
@@ -100,7 +99,16 @@ public class TuningController : Controller
         {
             var depthFactor = p.max_depth.HasValue && p.max_depth.Value < 50 ? -0.025 : 0.0;
             var treeFactor = p.n_estimators >= 300 ? 0.012 : (p.n_estimators < 100 ? -0.018 : 0.0);
-            pSmish = Math.Clamp(pSmish + depthFactor + treeFactor, 0.01, 0.99);
+            var criterionFactor = p.criterion == "gini" ? -0.008 : 0.0;
+            var leafPenalty = (p.min_samples_leaf - 1) * 0.006;
+            var splitPenalty = Math.Max(0, p.min_samples_split - 6) * 0.003;
+            var classWeightBoost = p.class_weight != "None" ? 0.015 : 0.0;
+
+            pSmish = pSmish >= 0.5
+                ? Math.Max(0.51, pSmish - leafPenalty - splitPenalty)
+                : Math.Min(0.49, pSmish + leafPenalty + splitPenalty);
+
+            pSmish = Math.Clamp(pSmish + depthFactor + treeFactor + criterionFactor + classWeightBoost, 0.01, 0.99);
         }
 
         if (p.ngram_range == "1,1")

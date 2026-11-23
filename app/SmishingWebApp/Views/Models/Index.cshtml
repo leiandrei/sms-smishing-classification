@@ -106,7 +106,7 @@
     <span class="mono tag-pill">HYPERPARAMETER REFERENCE</span>
     <h2>Tunable Parameters per Model</h2>
     <p class="table-intro">
-        Parameters exposed in the <a asp-controller="Tuning" asp-action="Index" class="inline-link">Tuning sandbox</a> and their tuned production defaults[cite: 8]:
+        Parameters exposed in the <a asp-controller="Tuning" asp-action="Index" class="inline-link">Tuning sandbox</a> and their tuned production defaults:
     </p>
 
     <div class="table-wrapper">
@@ -151,16 +151,40 @@
                     <td>Maximum tree depth controlling how deeply complex multi-token rules can branch.</td>
                 </tr>
                 <tr>
-                    <td class="mono">min_samples_split</td>
+                    <td class="mono">criterion</td>
                     <td>Random Forest</td>
-                    <td class="mono">6</td>
-                    <td>Minimum SMS samples required at an internal node before splitting further.</td>
+                    <td class="mono">entropy</td>
+                    <td>Split quality function (<span class="mono">entropy</span> information gain vs. <span class="mono">gini</span> impurity) used to evaluate candidate tree splits.</td>
                 </tr>
                 <tr>
                     <td class="mono">max_features</td>
                     <td>Random Forest</td>
                     <td class="mono">log2</td>
                     <td>Number of candidate TF-IDF/heuristic features evaluated at each split (<span class="mono">log2</span>, <span class="mono">sqrt</span>, or <span class="mono">all</span>).</td>
+                </tr>
+                <tr>
+                    <td class="mono">min_samples_split</td>
+                    <td>Random Forest</td>
+                    <td class="mono">6</td>
+                    <td>Minimum SMS samples required at an internal node before splitting further.</td>
+                </tr>
+                <tr>
+                    <td class="mono">min_samples_leaf</td>
+                    <td>Random Forest</td>
+                    <td class="mono">1</td>
+                    <td>Minimum SMS samples required to remain at a leaf node after a split.</td>
+                </tr>
+                <tr>
+                    <td class="mono">class_weight</td>
+                    <td>Random Forest</td>
+                    <td class="mono">None</td>
+                    <td>Controls class weighting (<span class="mono">None</span> treats classes with equal unit weight; <span class="mono">balanced</span> scales inversely to class frequency).</td>
+                </tr>
+                <tr>
+                    <td class="mono">random_state</td>
+                    <td>Random Forest</td>
+                    <td class="mono">42</td>
+                    <td>Deterministic pseudo-random seed controlling bootstrap sampling and feature subsampling reproducibility.</td>
                 </tr>
                 <tr>
                     <td class="mono">ngram_range</td>

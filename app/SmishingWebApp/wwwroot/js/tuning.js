@@ -13,8 +13,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const estimatorsDisplay = document.getElementById("estimatorsValueDisplay");
     const maxDepthInput = document.getElementById("tuneMaxDepth");
     const maxDepthDisplay = document.getElementById("maxDepthValueDisplay");
-    const minSamplesInput = document.getElementById("tuneMinSamplesSplit");
+    const criterionSelect = document.getElementById("tuneCriterion");
     const maxFeaturesSelect = document.getElementById("tuneMaxFeatures");
+    const minSamplesSplitInput = document.getElementById("tuneMinSamplesSplit");
+    const minSamplesLeafInput = document.getElementById("tuneMinSamplesLeaf");
+    const classWeightSelect = document.getElementById("tuneClassWeight");
+    const randomStateInput = document.getElementById("tuneRandomState");
 
     const ngramSelect = document.getElementById("tuneNgramRange");
     const maxVocabInput = document.getElementById("tuneMaxVocab");
@@ -43,10 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
         alpha: parseFloat(alphaInput.value),
         fit_prior: fitPriorInput.checked,
         norm: normInput.checked,
-        n_estimators: parseInt(estimatorsInput.value, 10),
+        class_weight: classWeightSelect.value,
+        criterion: criterionSelect.value,
         max_depth: parseInt(maxDepthInput.value, 10),
-        min_samples_split: parseInt(minSamplesInput.value, 10),
         max_features: maxFeaturesSelect.value,
+        min_samples_leaf: parseInt(minSamplesLeafInput.value, 10),
+        min_samples_split: parseInt(minSamplesSplitInput.value, 10),
+        n_estimators: parseInt(estimatorsInput.value, 10),
+        random_state: parseInt(randomStateInput.value, 10),
         ngram_range: ngramSelect.value,
         lowercase: lowercaseInput.checked,
         max_vocab: parseInt(maxVocabInput.value, 10),
@@ -143,8 +151,12 @@ document.addEventListener("DOMContentLoaded", () => {
         normInput,
         estimatorsInput,
         maxDepthInput,
-        minSamplesInput,
+        criterionSelect,
         maxFeaturesSelect,
+        minSamplesSplitInput,
+        minSamplesLeafInput,
+        classWeightSelect,
+        randomStateInput,
         ngramSelect,
         maxVocabInput,
         lowercaseInput,
@@ -161,10 +173,14 @@ document.addEventListener("DOMContentLoaded", () => {
             alphaInput.value = "0.10";
             fitPriorInput.checked = true;
             normInput.checked = false;
-            estimatorsInput.value = "200";
+            classWeightSelect.value = "None";
+            criterionSelect.value = "entropy";
             maxDepthInput.value = "200";
-            minSamplesInput.value = "6";
             maxFeaturesSelect.value = "log2";
+            minSamplesLeafInput.value = "1";
+            minSamplesSplitInput.value = "6";
+            estimatorsInput.value = "200";
+            randomStateInput.value = "42";
             ngramSelect.value = "1,4";
             maxVocabInput.value = "10000";
             lowercaseInput.checked = true;
@@ -180,10 +196,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 alpha: String(p.alpha),
                 fit_prior: String(p.fit_prior),
                 norm: String(p.norm),
-                n_estimators: String(p.n_estimators),
+                class_weight: p.class_weight,
+                criterion: p.criterion,
                 max_depth: String(p.max_depth),
-                min_samples_split: String(p.min_samples_split),
                 max_features: p.max_features,
+                min_samples_leaf: String(p.min_samples_leaf),
+                min_samples_split: String(p.min_samples_split),
+                n_estimators: String(p.n_estimators),
+                random_state: String(p.random_state),
                 ngram_range: p.ngram_range,
                 lowercase: String(p.lowercase),
                 max_vocab: String(p.max_vocab)

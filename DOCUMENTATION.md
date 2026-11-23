@@ -256,3 +256,19 @@ Run the `pytest` suite from the repository root to verify endpoint routing, resp
 ```bash
 python -m pytest api/testing.py -v
 ```
+
+## System Architecture
+
+The application uses a containerized hybrid microservices architecture:
+
+* **ML Inference Backend (`api/`):** Python FastAPI service serving serialized Scikit-Learn pipelines (`MultinomialNB`, `ComplementNB`, and `RandomForestClassifier` bundled with `TfidfVectorizer` and 13 engineered SMS/telco heuristic features) on port `8000`.
+* **Web Frontend (`app/SmishingWebApp/`):** ASP.NET Core MVC (.NET 11) application communicating with FastAPI via a typed `HttpClient` (`SmishingApiService`) on port `8080`, featuring:
+  * **Detector (`/`):** Filipino, Taglish, and English SMS classification, probability breakdowns, signal token weights, and on-device screenshot OCR (`Tesseract.js`).
+  * **Models (`/Models`):** Architecture comparison and hyperparameter reference table.
+  * **Tuning (`/Tuning`):** Interactive hyperparameter sandbox with live preview calibration and parameter carry-over.
+
+## Running with Docker Compose
+
+1. Build and start both containers from the repository root:
+   ```bash
+   docker compose up --build -d --remove-orphans
