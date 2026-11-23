@@ -16,6 +16,9 @@ public interface ISmishingApiService
 
 public partial class SmishingApiService : ISmishingApiService
 {
+    private const int MaxColdStartAttempts = 4;
+    private static readonly TimeSpan ColdStartRetryDelay = TimeSpan.FromSeconds(8);
+
     private static readonly Dictionary<string, string> ModelDisplayNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ["cnb"] = "Complement Naive Bayes",
@@ -59,17 +62,34 @@ public partial class SmishingApiService : ISmishingApiService
     {
         var normalizedKey = ModelDisplayNames.ContainsKey(modelKey) ? modelKey.ToLowerInvariant() : "cnb";
         var payload = new FastApiPredictRequest { SmsMessage = smsMessage };
+        HttpResponseMessage? response = null;
 
         try
         {
-            using var response = await _httpClient.PostAsJsonAsync(
-                $"/{normalizedKey}/predict",
-                payload,
-                cancellationToken);
-
-            if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+            for (var attempt = 1; attempt <= MaxColdStartAttempts; attempt++)
             {
-                return (null, "Inference service unavailable (503). Verify that the FastAPI model bundle is loaded.");
+                response?.Dispose();
+                response = await _httpClient.PostAsJsonAsync(
+                    $"/{normalizedKey}/predict",
+                    payload,
+                    cancellationToken);
+
+                if (!IsTransientGatewayError(response.StatusCode) || attempt == MaxColdStartAttempts)
+                {
+                    break;
+                }
+
+                await Task.Delay(ColdStartRetryDelay, cancellationToken);
+            }
+
+            if (response is null)
+            {
+                return (null, "No response received from inference service.");
+            }
+
+            if (IsTransientGatewayError(response.StatusCode))
+            {
+                return (null, $"Inference service is waking up or unavailable (HTTP {(int)response.StatusCode}). Retry in a few seconds.");
             }
 
             if (response.StatusCode == HttpStatusCode.UnprocessableEntity)
@@ -123,11 +143,24 @@ public partial class SmishingApiService : ISmishingApiService
 
             return (result, null);
         }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (null, "Inference request timed out while waiting for the API service to wake up. Retry in a few seconds.");
+        }
         catch (HttpRequestException)
         {
-            return (null, "Cannot connect to the FastAPI backend on port 8000. Start the API container or Uvicorn server.");
+            return (null, "Cannot connect to the FastAPI inference service. Verify that the API is running and reachable.");
+        }
+        finally
+        {
+            response?.Dispose();
         }
     }
+
+    private static bool IsTransientGatewayError(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.BadGateway
+            or HttpStatusCode.ServiceUnavailable
+            or HttpStatusCode.GatewayTimeout;
 
     private static List<TokenSignal> ExtractFallbackTokens(string message)
     {

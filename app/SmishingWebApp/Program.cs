@@ -8,7 +8,7 @@ builder.Services.AddHttpClient<ISmishingApiService, SmishingApiService>(client =
 {
     var baseUrl = builder.Configuration["SmishingApi:BaseUrl"] ?? "http://localhost:8000";
     client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(60);
 });
 
 var app = builder.Build();
