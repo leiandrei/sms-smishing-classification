@@ -262,3 +262,18 @@ def main(master_dataset_path: str, new_datasets_paths: list, output_path: str):
     df_final.to_csv(output_path, index=False)
     print(f"Successfully saved to: {output_path}")
     return df_final
+
+def extract_inference_features(raw_text: str) -> pd.DataFrame:
+
+    raw_str = '' if raw_text is None else str(raw_text)
+    signals = extract_signal_feats(raw_str)
+
+    text_raw = ' '.join(raw_str.split())
+    row = {
+        'text': preprocess_text(text_raw),
+        **signals,
+        'punctuation_count': sum(ch in string.punctuation for ch in text_raw),
+        'word_count': count_words(text_raw),
+        'text_count': len(text_raw),
+    }
+    return pd.DataFrame([row])

@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sms-scam-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_BUNDLE_PATH=/sms-scam-classification/model/bundled_pipeline.joblib
+    volumes:
+      - ./model:/sms-scam-classification/model:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    container_name: sms-scam-ui
+    ports:
+      - "3000:80"
+    volumes:
+      - ./app:/usr/share/nginx/html:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
